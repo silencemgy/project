@@ -46,6 +46,7 @@ public abstract class BaseBackServlet extends HttpServlet {
 	protected ReviewDAO reviewDAO = new ReviewDAO();
 	protected UserDAO userDAO = new UserDAO();
 
+	@Override
 	public void service(HttpServletRequest request, HttpServletResponse response) {
 		try {
 			

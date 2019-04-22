@@ -1,5 +1,6 @@
 package tmall.servlet;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -8,17 +9,18 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.web.util.HtmlUtils;
 
-import comparator.ProductAllComparator;
-import comparator.ProductDateComparator;
-import comparator.ProductPriceComparator;
-import comparator.ProductReviewComparator;
-import comparator.ProductSaleCountComparator;
 import tmall.bean.Category;
+import tmall.bean.OrderItem;
 import tmall.bean.Product;
 import tmall.bean.ProductImage;
 import tmall.bean.PropertyValue;
 import tmall.bean.Review;
 import tmall.bean.User;
+import tmall.comparator.ProductAllComparator;
+import tmall.comparator.ProductDateComparator;
+import tmall.comparator.ProductPriceComparator;
+import tmall.comparator.ProductReviewComparator;
+import tmall.comparator.ProductSaleCountComparator;
 import tmall.dao.CategoryDAO;
 import tmall.dao.ProductDAO;
 import tmall.dao.ProductImageDAO;
@@ -104,6 +106,7 @@ public class ForeServlet extends BaseForeServlet {
 		if(user == null){
 			return "%fail";
 		}
+		request.getSession().setAttribute("user", user);
 		return "%success";
 	}
 	
@@ -136,4 +139,96 @@ public class ForeServlet extends BaseForeServlet {
 		request.setAttribute("c", c);
 		return "category.jsp";
 	}
+	
+	public String search(HttpServletRequest request, HttpServletResponse response, Page page){
+		String keyword = request.getParameter("keyword");
+		List<Product> ps = new ProductDAO().search(keyword, 0, 20);
+		productDAO.setSaleAndReviewNumber(ps);
+		request.setAttribute("ps", ps);
+		return "searchResult.jsp";
+	}
+	
+	public String buyone(HttpServletRequest request, HttpServletResponse response, Page page){
+		int pid = Integer.parseInt(request.getParameter("pid"));
+		int num = Integer.parseInt(request.getParameter("num"));
+		Product p = productDAO.get(pid);
+		int oiid = 0;
+		
+		User user = (User) request.getSession().getAttribute("user");
+		boolean found = false;
+		List<OrderItem> ois = orderItemDAO.listByUser(user.getId());
+		for(OrderItem oi : ois){
+			if(oi.getProduct().getId() == p.getId()){
+				oi.setNumber(oi.getNumber() + num);
+				orderItemDAO.update(oi);
+				found = true;
+				oiid = oi.getId();
+				break;
+			}
+		}
+		if(!found){
+			OrderItem oi = new OrderItem();
+			oi.setUser(user);
+			oi.setNumber(num);
+			oi.setProduct(p);
+			orderItemDAO.add(oi);
+			oiid = oi.getId();
+		}
+		return "@forebuy?oiid=" + oiid;
+	}
+	
+	public String buy(HttpServletRequest request, HttpServletResponse response, Page page){
+		String[] oiids = request.getParameterValues("oiid");
+		List<OrderItem> ois = new ArrayList<>();
+		float total = 0;
+		
+		for(String strid : oiids){
+			int oiid = Integer.parseInt(strid);
+			OrderItem oi = orderItemDAO.get(oiid);
+			total = oi.getProduct().getPromotePrice()*oi.getNumber();
+			ois.add(oi);
+		}
+		
+		request.getSession().setAttribute("ois", ois);
+		request.setAttribute("total", total);
+		return "buy.jsp";
+	}
+	
+	public String addCart(HttpServletRequest request, HttpServletResponse response, Page page){
+		int pid = Integer.parseInt(request.getParameter("pid"));
+		int num = Integer.parseInt(request.getParameter("num"));
+		Product p = productDAO.get(pid);
+		
+		User user = (User) request.getSession().getAttribute("user");
+		boolean found = false;
+		
+		List<OrderItem> ois = orderItemDAO.listByUser(user.getId());
+		for(OrderItem oi : ois){
+			if(oi.getProduct().getId() == p.getId()){
+				oi.setNumber(oi.getNumber() + num);
+				orderItemDAO.update(oi);
+				found = true;
+				break;
+			}
+		}
+		if(!found){
+			OrderItem oi = new OrderItem();
+			oi.setUser(user);
+			oi.setNumber(num);
+			oi.setProduct(p);
+			orderItemDAO.add(oi);
+		}
+		return "%success";
+	}
+	
+	public String cart(HttpServletRequest request, HttpServletResponse response, Page page){
+		User user = (User) request.getSession().getAttribute("user");
+		List<OrderItem> ois = orderItemDAO.listByUser(user.getId());
+		request.setAttribute("ois", ois);
+		return "cart.jsp";
+	}
+	
+	
+	
+	
 }
