@@ -9,6 +9,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
+import tmall.bean.Category;
 import tmall.bean.Order;
 import tmall.bean.OrderItem;
 import tmall.bean.Product;
